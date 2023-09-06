@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UserDataRequest;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
@@ -21,19 +23,18 @@ class UserController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(UserDataRequest $request)
     {
         try {
-            // Criar validate
-            // Criar Handler de erros
+            $request->validated();
+
             if ($this->emailAlreadyRegistered($request->get('email'))) {
                 throw new BadRequestHttpException('E-mail already registered');
             }
 
-            if ($cpf = $this->cpfAlreadyRegistered($request->get('cpf'))) {
+            if ($this->cpfAlreadyRegistered($request->get('cpf'))) {
                 throw new BadRequestHttpException('CPF already registered');
             }
-
 
             $user = new User();
             $user->name     = $request->get('name');
@@ -44,6 +45,8 @@ class UserController extends Controller
             $user->save();
             return response($user, Response::HTTP_CREATED);
         } catch(BadRequestHttpException $e) {
+            return response(['Error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        } catch(ValidationException $e) {
             return response(['Error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         } catch (Exception $e) {
             return response([
@@ -69,10 +72,11 @@ class UserController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(UserDataRequest $request, string $id)
     {
         try {
-            // Criar validate
+            $request->validated();
+
             $user = User::find($id);
             if (!$user) {
                 return response(['Error' => 'User not found'], Response::HTTP_NOT_FOUND);
@@ -82,7 +86,7 @@ class UserController extends Controller
                 throw new BadRequestHttpException('E-mail already registered');
             }
 
-            if ($cpf = $this->cpfAlreadyRegistered($request->get('cpf'), $user->id)) {
+            if ($this->cpfAlreadyRegistered($request->get('cpf'), $user->id)) {
                     throw new BadRequestHttpException('CPF already registered');
             }
 
