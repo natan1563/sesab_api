@@ -11,12 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
+        Schema::create('addresses', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->index('name_index');
-            $table->string('cpf', 11)->unique('cpf_index');
-            $table->string('email')->unique();
-            $table->boolean('is_admin')->default(false);
+            $table->string('cep', 8);
+            $table->string('public_place');
+            $table->string('neighborhood', 30);
+            $table->string('locality', 30);
+            $table->string('uf', 2);
+            $table->foreignId('user_id')->constrained('users');
             $table->timestamps();
         });
     }
@@ -26,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
+        Schema::dropIfExists('addresses');
     }
 };
