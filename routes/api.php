@@ -16,4 +16,5 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+Route::get('/users/filter', [UserController::class, 'searchUsers']);
 Route::resource('users', UserController::class);

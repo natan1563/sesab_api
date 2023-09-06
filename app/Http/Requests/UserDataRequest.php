@@ -4,7 +4,6 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Response;
 use Illuminate\Validation\ValidationException;
 
@@ -19,7 +18,19 @@ class UserDataRequest extends FormRequest
     {
         return [
             'email'     => 'required|unique:users|email|max:255',
-            'cpf'       => 'required|unique:users|max:14',
+            'cpf'       => [
+                'required',
+                'unique:users',
+                'max:14',
+                function($attribute, $value, $fail) {
+                    $cpf = preg_replace( '/[^0-9]/is', '', $value );
+
+                    if (strlen($cpf) != 11 || !preg_match('/(\d){11}/', $cpf)) {
+                        $fail("The attributte {$attribute} is invalid");
+                        return;
+                    }
+                }
+            ],
             'name'      => 'required|max:255',
             'is_admin'  => 'required|boolean'
         ];

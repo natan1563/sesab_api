@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UserDataRequest;
 use App\Models\User;
+use DateTime;
+use DateTimeZone;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -32,13 +35,14 @@ class UserController extends Controller
                 throw new BadRequestHttpException('E-mail already registered');
             }
 
-            if ($this->cpfAlreadyRegistered($request->get('cpf'))) {
+            $cpf = $this->removeExtraCharacters($request->get('cpf'));
+            if ($this->cpfAlreadyRegistered($cpf)) {
                 throw new BadRequestHttpException('CPF already registered');
             }
 
             $user = new User();
             $user->name     = $request->get('name');
-            $user->cpf      = $request->get('cpf');
+            $user->cpf      = $cpf;
             $user->email    = $request->get('email');
             $user->is_admin = $request->get('is_admin');
 
@@ -86,12 +90,13 @@ class UserController extends Controller
                 throw new BadRequestHttpException('E-mail already registered');
             }
 
-            if ($this->cpfAlreadyRegistered($request->get('cpf'), $user->id)) {
+            $cpf = $this->removeExtraCharacters($request->get('cpf'));
+            if ($this->cpfAlreadyRegistered($cpf, $user->id)) {
                     throw new BadRequestHttpException('CPF already registered');
             }
 
             $user->name     = $request->get('name');
-            $user->cpf      = $request->get('cpf');
+            $user->cpf      = $cpf;
             $user->email    = $request->get('email');
             $user->is_admin = $request->get('is_admin');
 
@@ -128,6 +133,32 @@ class UserController extends Controller
         }
     }
 
+    public function searchUsers(Request $request)
+    {
+        $request->validate([
+            'name'           => 'required|max:255',
+            'cpf'            => 'required|max:14|min:11',
+            'initial_date'   => 'required',
+            'finished_date'  => 'required',
+        ]);
+
+        $cpf = $this->removeExtraCharacters($request->get('cpf'));
+        $timezone = new DateTimeZone('America/Sao_Paulo');
+
+        $usersOnRange = DB::table('users')
+                                        ->where('cpf', $cpf, boolean: 'or')
+                                        ->orWhere('name', 'LIKE', "%{$request->get('name')}%")
+                                        ->whereBetween(
+                                            'created_at',
+                                            [
+                                                new DateTime($request->get('initial_date'), $timezone),
+                                                new DateTime($request->get('finished_date'), $timezone)
+                                            ]
+                                        );
+
+        return $usersOnRange->get();
+    }
+
     private function emailAlreadyRegistered(string $email, string $id = null)
     {
         return $this->abstractVerify('email', $email, $id);
@@ -148,5 +179,9 @@ class UserController extends Controller
         }
 
         return User::where($clousure)->count() > 0;
+    }
+
+    private function removeExtraCharacters($cpf) {
+        return preg_replace( '/[^0-9]/is', '', $cpf);
     }
 }
