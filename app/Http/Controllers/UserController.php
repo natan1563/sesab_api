@@ -9,6 +9,7 @@ use DateTimeZone;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -143,6 +144,15 @@ class UserController extends Controller
         ]);
 
         $cpf = $this->removeExtraCharacters($request->get('cpf'));
+
+        $redisKey = strtolower(
+            "filtered-user:{$cpf}:{$request->get('name')}:{$request->get('initial_date')}:{$request->get('finished_date')}"
+        );
+
+        if ($cachedUsers = Redis::get($redisKey)) {
+            return json_decode($cachedUsers);
+        }
+
         $timezone = new DateTimeZone('America/Sao_Paulo');
 
         $usersOnRange = DB::table('users')
@@ -154,9 +164,12 @@ class UserController extends Controller
                                                 new DateTime($request->get('initial_date'), $timezone),
                                                 new DateTime($request->get('finished_date'), $timezone)
                                             ]
-                                        );
+                                        )
+                                        ->get();
 
-        return $usersOnRange->get();
+        Redis::set($redisKey, $usersOnRange, 'EX', 60 * 5);
+
+        return $usersOnRange;
     }
 
     private function emailAlreadyRegistered(string $email, string $id = null)
