@@ -17,4 +17,9 @@ class Address extends Model
         'uf',
         'user_id'
     ];
+
+    public function address()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

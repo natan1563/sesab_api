@@ -21,7 +21,7 @@ class UserController extends Controller
      */
     public function index()
     {
-        return response(User::all());
+        return response(User::with('addresses')->get());
     }
 
     /**
@@ -65,7 +65,7 @@ class UserController extends Controller
      */
     public function show(string $id)
     {
-        $user = User::find($id);
+        $user = User::with('addresses')->find($id);
 
         if (!$user) {
             return response(['Error' => 'User not found'], Response::HTTP_NOT_FOUND);
