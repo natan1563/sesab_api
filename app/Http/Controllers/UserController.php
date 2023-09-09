@@ -149,6 +149,10 @@ class UserController extends Controller
             "filtered-user:{$cpf}:{$request->get('name')}:{$request->get('initial_date')}:{$request->get('finished_date')}"
         );
 
+        if ($request->header('Cache-Control') === 'no-cache') {
+            Redis::del($redisKey);
+        }
+
         if ($cachedUsers = Redis::get($redisKey)) {
             return json_decode($cachedUsers);
         }
@@ -165,7 +169,11 @@ class UserController extends Controller
                                                 new DateTime($request->get('finished_date'), $timezone)
                                             ]
                                         )
-                                        ->get();
+                                        ->get('id');
+
+        foreach ($usersOnRange as $key => $user) {
+           $usersOnRange[$key] = User::with('addresses')->find($user->id);
+        }
 
         Redis::set($redisKey, $usersOnRange, 'EX', 60 * 5);
 
