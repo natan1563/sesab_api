@@ -1,36 +1,27 @@
-# Use a imagem oficial do PHP 8.1-fpm baseada em Alpine
-FROM php:8.1-fpm-alpine as sesab_app_api
+FROM composer:2.4 as build
+COPY . /app/
+RUN composer install --prefer-dist --no-dev --optimize-autoloader --no-interaction
 
-WORKDIR /var/www/sesab_app
+FROM php:8.1-apache-buster as dev
 
-RUN echo http://dl-cdn.alpinelinux.org/alpine/edge/main >> /etc/apk/repositories
-RUN echo http://dl-cdn.alpinelinux.org/alpine/edge/community/ >> /etc/apk/repositories
+ENV APP_ENV=dev
+ENV APP_DEBUG=true
+ENV COMPOSER_ALLOW_SUPERUSER=1
 
-# Instalar o pacote curl
-RUN apk --no-cache add curl
-RUN apk add --no-cache bash
+RUN apt-get update && apt-get install -y zip
+RUN docker-php-ext-install pdo pdo_mysql
 
-RUN apk add --no-cache bash
+COPY . /var/www/html/
+COPY --from=build /usr/bin/composer /usr/bin/composer
+RUN composer install --prefer-dist --no-interaction
 
-# Instala o composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+COPY ./.devops/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
+# COPY .env /var/www/html/.env
 
-# Instala o pacote
-RUN apk update && \
-    apk add bash build-base gcc wget git autoconf libmcrypt-dev libzip-dev zip \
-    g++ make openssl-dev \
-    php81-openssl \
-    php81-pdo_mysql \
-    php81-mbstring
+RUN php artisan config:cache && \
+    php artisan route:cache && \
+    chmod 777 -R /var/www/html/storage/ && \
+    chown -R www-data:www-data /var/www/ && \
+    a2enmod rewrite
 
-RUN pecl install mcrypt && \
-    docker-php-ext-enable mcrypt
-
-# Configurar o diretório de trabalho
-COPY ../../. ./var/www/sesab_app
-
-# Expor a porta utilizada pelo PHP-FPM
 EXPOSE 8000
-
-# Comando para iniciar o PHP-FPM
-CMD ["php-fpm"]

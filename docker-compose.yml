@@ -3,17 +3,20 @@ version: "3.4"
 services:
   webserver:
     container_name: sesab_api
-    command: php artisan serve
     build:
-      context: .
+      context: ./
+      target: dev
       dockerfile: ./.devops/php/Dockerfile
-    ports:
-      - '${APP_PORT:-8000}:8000'
     volumes:
-      - .:/var/www/sesab_app
+      - .:/var/www/html
+    ports:
+      - "${APP_PORT:-8000}:80"
+    entrypoint: ./.devops/entrypoint.sh
     depends_on:
       - database
       - cacheserver
+    networks:
+      - webserver
 
   database:
     container_name: sesab_database
@@ -22,9 +25,24 @@ services:
       MYSQL_ROOT_PASSWORD: root
     ports:
       - "${DB_PORT:-3306}:3306"
+    networks:
+      - webserver
+
+  database:
+    container_name: mariadb-2
+    image: mariadb:10.6-focal
+    environment:
+      MYSQL_DATABASE: "${DB_DATABASE:-sesab_api}"
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
 
   cacheserver:
-    container_name: redis_server
+    container_name: redis_server-2
     image: redis:7.0.12-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
+
+networks:
+  webserver:
+    driver: bridge
